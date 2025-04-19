@@ -1,99 +1,88 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <title>Rastreamento de Perfil Político</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f2f2f2;
-      max-width: 600px;
-      margin: auto;
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-    }
-    button {
-      padding: 12px;
-      margin-top: 10px;
-      background-color: #0066cc;
-      color: white;
-      border: none;
-      cursor: pointer;
-      width: 100%;
-    }
-    button:hover {
-      background-color: #004c99;
-    }
-    #resultado {
-      margin-top: 20px;
-      white-space: pre-wrap;
-      background-color: white;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-    }
-  </style>
-</head>
-<body>
-  <h2>Rastreamento de Perfil Político</h2>
-  <label for="nome">Nome do Candidato:</label>
-  <input type="text" id="nome" placeholder="Digite o nome completo">
-  <button onclick="enviarNome()">Buscar Perfil</button>
-  <div id="resultado">Resultado aparecerá aqui...</div>
-
-  <!-- Biblioteca para exportar Excel -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-light py-5">
+  <div class="container">
+    <h2 class="mb-4 text-center">Rastreamento de Perfil Político</h2>
+    <div class="mb-3">
+      <label for="nomes" class="form-label">Digite um ou mais nomes (separados por vírgula):</label>
+      <textarea class="form-control" id="nomes" rows="3" placeholder="Ex: Fulano da Silva, Beltrano de Tal"></textarea>
+    </div>
+    <button class="btn btn-primary w-100 mb-3" onclick="enviarNomes()">Buscar Perfis</button>
+    <div id="resultado" class="p-3 bg-white rounded shadow-sm" style="white-space: pre-wrap;">Resultado aparecerá aqui...</div>
+  </div>
 
   <script>
-    async function enviarNome() {
-      const nome = document.getElementById('nome').value;
+    async function enviarNomes() {
+      const input = document.getElementById('nomes').value;
+      const nomes = input.split(',').map(n => n.trim()).filter(n => n.length > 0);
       const resultadoDiv = document.getElementById('resultado');
-      resultadoDiv.textContent = "Buscando dados para: " + nome + " ...";
+      resultadoDiv.textContent = "Iniciando buscas...\n";
 
-      try {
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer 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"
-          },
-          body: JSON.stringify({
-            model: "gpt-4",
-            messages: [{
-              role: "user",
-              content: `Pesquise onde o candidato "${nome}" possui perfil online: Instagram, Facebook, TikTok, LinkedIn etc. Busque também por notícias e processos judiciais. Organize os resultados em colunas: Plataforma/Notícia, Link, Tipo, Observações.`
-            }]
-          })
-        });
+      const resultadosExcel = [];
 
-        const data = await response.json();
-        const resultado = data.choices[0].message.content;
-        resultadoDiv.textContent = resultado;
+      for (const nome of nomes) {
+        resultadoDiv.textContent += `\nBuscando: ${nome} ...`;
 
-        // Converter texto para planilha
-        const linhas = resultado.split('\n').filter(l => l.includes('|'));
-        const dados = linhas.map(linha => {
-          const partes = linha.split('|').map(p => p.trim());
-          return {
-            Plataforma: partes[0] || '',
-            Link: partes[1] || '',
-            Tipo: partes[2] || '',
-            Observações: partes[3] || ''
-          };
-        });
+        // --- Verificação via scraping (apenas estrutura simulada) ---
+        await simularScrapingLegal(nome);
 
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(dados);
-        XLSX.utils.book_append_sheet(wb, ws, "Perfil Político");
-        XLSX.writeFile(wb, `${nome.replace(/\s+/g, "_")}_perfil.xlsx`);
-      } catch (erro) {
-        resultadoDiv.textContent = "Erro ao buscar dados. Verifique sua conexão ou chave da API.";
-        console.error(erro);
+        try {
+          const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer SUA_CHAVE_OPENAI"
+            },
+            body: JSON.stringify({
+              model: "gpt-4",
+              messages: [{
+                role: "user",
+                content: `Pesquise onde o candidato "${nome}" possui perfil online: Instagram, Facebook, TikTok, LinkedIn etc. Busque também por notícias e processos judiciais. Organize os resultados em colunas: Plataforma/Notícia, Link, Tipo, Observações.`
+              }]
+            })
+          });
+
+          const data = await response.json();
+          const resultado = data.choices[0].message.content;
+          resultadoDiv.textContent += `\n\n${resultado}\n\n`;
+
+          // Convertendo para Excel
+          const linhas = resultado.split('\n').filter(l => l.includes('|'));
+          const dados = linhas.map(linha => {
+            const partes = linha.split('|').map(p => p.trim());
+            return {
+              Nome: nome,
+              Plataforma: partes[0] || '',
+              Link: partes[1] || '',
+              Tipo: partes[2] || '',
+              Observações: partes[3] || ''
+            };
+          });
+
+          resultadosExcel.push(...dados);
+        } catch (erro) {
+          resultadoDiv.textContent += `\nErro ao buscar dados de ${nome}.`;
+          console.error(erro);
+        }
       }
+
+      // Exportar tudo para Excel
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(resultadosExcel);
+      XLSX.utils.book_append_sheet(wb, ws, "Perfis Políticos");
+      XLSX.writeFile(wb, `perfis_politicos.xlsx`);
+    }
+
+    async function simularScrapingLegal(nome) {
+      // Aqui você pode conectar APIs como SerpAPI ou mecanismos legais de scraping
+      console.log(`[Simulação scraping legal] Verificando perfis públicos de ${nome}`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simula tempo de busca
     }
   </script>
 </body>
