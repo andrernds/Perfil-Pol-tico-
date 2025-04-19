@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Rastreamento de Perfil Político</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f2f2f2; }
+    input[type="text"] { width: 100%; padding: 12px; margin-top: 10px; }
+    button { padding: 12px; margin-top: 10px; background-color: #0066cc; color: white; border: none; cursor: pointer; width: 100%; }
+    button:hover { background-color: #004c99; }
+    #resultado { margin-top: 20px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>Rastreamento de Perfil Político</h2>
+  <label for="nome">Nome do Candidato:</label>
+  <input type="text" id="nome" placeholder="Digite o nome completo">
+  <button onclick="enviarNome()">Buscar Perfil</button>
+  <div id="resultado"></div>
+
+  <script>
+    async function enviarNome() {
+      const nome = document.getElementById('nome').value;
+      const resultadoDiv = document.getElementById('resultado');
+      resultadoDiv.textContent = "Buscando dados para: " + nome + " ...";
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer SUA_CHAVE_OPENAI"
+        },
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: `Pesquise onde o candidato "${nome}" possui perfil online: Instagram, Facebook, TikTok, LinkedIn etc. Busque também por notícias e processos judiciais. Organize os resultados para geração de planilha Excel.` }]
+        })
+      });
+
+      const data = await response.json();
+      resultadoDiv.textContent = data.choices[0].message.content;
+    }
+  </script>
+</body>
+</html>
